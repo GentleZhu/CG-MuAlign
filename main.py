@@ -1,8 +1,8 @@
-import module
+from models import module
 import utils
 import argparse, pickle, time
 from IPython import embed
-from GraphBuilder import Graph
+from preprocess import *
 import torch.utils.data as tdata
 import dgl
 import torch
@@ -17,7 +17,7 @@ import itertools
 #from torch.utils.tensorboard import SummaryWriter
 from collections import defaultdict
 import random
-
+from sklearn.metrics import roc_auc_score 
 
 def materializeGraph(dgl_graph, feat_graph, args):
     features = torch.FloatTensor(feat_graph.features)
@@ -65,40 +65,47 @@ def genEdgeBatch(g, train_data, graph_a, graph_b, adj_a, adj_b, type_a_dict, typ
     eids = []
 
     left_nodes, right_nodes = set(), set()
-    
-    for i in range(train_data.shape[0]):
-        left_nodes.add(train_data[i, 0])
-        right_nodes.add(train_data[i, 1])
-        for n in random.sample(adj_a[train_data[i, 0]], min(num_neighbors, len(adj_a[train_data[i, 0]]))):
-            left_nodes.add(n)
-            for sub_edge in type_a_dict[(n, train_data[i,0])]:
-                edge_indices[sub_edge + 1].append(g.edge_id(n, train_data[i,0]))
-            if add_edge:
-                g.add_edge(n, train_data[i, 1]+len(graph_a.id2idx))
-            e_id = g.edge_id(n, train_data[i, 1]+len(graph_a.id2idx))
-            #attn_edges.append(-type_a_dict[(n, train_data[i,0])] - 1)
-            for sub_edge in type_a_dict[(n, train_data[i,0])]:
-                edge_indices[-sub_edge - 1].append(e_id)
-            eids.append(e_id)
-        for m in random.sample(adj_b[train_data[i, 1]], min(num_neighbors, len(adj_b[train_data[i, 1]]))):
-            right_nodes.add(m)
-            for sub_edge in type_b_dict[(m, train_data[i,1])]:
-                edge_indices[sub_edge + 1].append(g.edge_id(m+len(graph_a.id2idx), train_data[i,1]+len(graph_a.id2idx)))
-            if add_edge:
-                g.add_edge(m+len(graph_a.id2idx), train_data[i, 0])
-            e_id = g.edge_id(m+len(graph_a.id2idx), train_data[i, 0])
+    #embed()
+    if True:
+        for i in range(train_data.shape[0]):
+            #left_nodes.add(train_data[i, 0])
+            #right_nodes.add(train_data[i, 1])
+            for n in random.sample(adj_a[train_data[i, 0]], min(num_neighbors, len(adj_a[train_data[i, 0]]))):
+                left_nodes.add(n)
+                for sub_edge in type_a_dict[(n, train_data[i,0])]:
+                    edge_indices[sub_edge + 1].append(g.edge_id(n, train_data[i,0]))
+                if add_edge:
+                    g.add_edge(n, train_data[i, 1]+len(graph_a.id2idx))
 
-            #attn_edges.append(-type_b_dict[(m, train_data[i,1])] - 1)
-            for sub_edge in type_b_dict[(m, train_data[i,1])]:
-                edge_indices[-sub_edge - 1].append(e_id)
-            eids.append(e_id)
+                e_id = g.edge_id(n, train_data[i, 1]+len(graph_a.id2idx))
+                #attn_edges.append(-type_a_dict[(n, train_data[i,0])] - 1)
+                for sub_edge in type_a_dict[(n, train_data[i,0])]:
+                    edge_indices[-sub_edge - 1].append(e_id)
+                eids.append(e_id)
+            for m in random.sample(adj_b[train_data[i, 1]], min(num_neighbors, len(adj_b[train_data[i, 1]]))):
+                right_nodes.add(m)
+                for sub_edge in type_b_dict[(m, train_data[i,1])]:
+                    edge_indices[sub_edge + 1].append(g.edge_id(m+len(graph_a.id2idx), train_data[i,1]+len(graph_a.id2idx)))
+                if add_edge:
+                    g.add_edge(m+len(graph_a.id2idx), train_data[i, 0])
+                    # here is duplicate
+                e_id = g.edge_id(m+len(graph_a.id2idx), train_data[i, 0])
 
+                #attn_edges.append(-type_b_dict[(m, train_data[i,1])] - 1)
+                for sub_edge in type_b_dict[(m, train_data[i,1])]:
+                    edge_indices[-sub_edge - 1].append(e_id)
+                eids.append(e_id)
+    #embed()
     if num_hops > 1:
+    #if False:
         nodes.append(list(left_nodes) + list(map(lambda x:x+len(graph_a.id2idx), right_nodes)))
         for node_id in list(left_nodes):
             for n in random.sample(adj_a[node_id], min(num_neighbors, len(adj_a[node_id])) ):
                 for sub_edge in type_a_dict[(n, node_id)]:
-                    edge_indices[sub_edge + 1].append(g.edge_id(n, node_id))
+                    try:
+                        edge_indices[sub_edge + 1].append(g.edge_id(n, node_id))
+                    except:
+                        embed()
         for node_id in list(right_nodes):
             for m in random.sample(adj_b[node_id], min(num_neighbors, len(adj_b[node_id])) ):
                 for sub_edge in type_b_dict[(m, node_id)]:
@@ -128,7 +135,6 @@ def genSubGraph(graph_a, graph_b, num_hops=1):
 
     edge_type_a, edge_type_b = torch.LongTensor(graph_a.edge_type), torch.LongTensor(graph_b.edge_type)
     num_type_a, num_type_b = torch.max(edge_type_a).item() + 1, torch.max(edge_type_b).item() + 1
-
     type_a_dict, type_b_dict = defaultdict(list), defaultdict(list)
     adj_a, adj_b = defaultdict(list), defaultdict(list)
     for a,b,t in zip(graph_a.edge_src, graph_a.edge_dst, graph_a.edge_type):
@@ -152,6 +158,7 @@ def genSubGraph(graph_a, graph_b, num_hops=1):
     
     num_edges = g.number_of_edges()
 
+    # concatenating two graphs
     g.ndata['features'] = torch.cat([torch.FloatTensor(graph_a.features), torch.FloatTensor(graph_b.features)], 0).cuda()
 
     #print(g.number_of_edges())
@@ -214,32 +221,12 @@ def main(args):
     # load and preprocess dataset
     # data = load_data(args)
     #print('here')
-    data_a = 'fb'
-    tmp_a = pickle.load(open('data/old/{}_graph.p'.format(data_a), 'rb'))
-    data_b = 'imdb'
-    tmp_b = pickle.load(open('data/old/{}_graph.p'.format(data_b), 'rb'))
 
-    '''
-    dist_a, dist_b = defaultdict(int), defaultdict(int) 
-    for t in tmp_a.edge_type:
-        dist_a[t] += 1
-    for t in tmp_b.edge_type:
-        dist_b[t] += 1
-    print(dist_a, dist_b)
-    return
-    '''
-    #print('here')
-    #neg_head, neg_tail = utils.readFile('./data/positive_labels.txt', './data/negative_labels.txt', includePos = False)
-    train_data_person, train_data_film, val_data, test_data = utils.generateTrainWithType('./data/total.txt', tmp_a, tmp_b, 0.1, 0.8)
-
-    #train_data = np.concatenate([train_data_person, train_data_film[:int(train_data_film.shape[0]*0.1), :]],axis = 0)
-    #train_data = train_data_person[:int(train_data_person.shape[0]*0.1), :]
-    #train_data = np.concatenate([train_data_film, train_data_person[:int(train_data_person.shape[0]*0.1), :]],axis = 0)
-    train_data = np.concatenate([train_data_film, train_data_person], axis = 0)
-    print(train_data.shape)
-    #test_id = np.asarray(utils.genEntAlignDataset(test_data, args.batch_size, len(tmp_a.id2idx), len(tmp_b.id2idx), args.num_test_negatives, combine = False))
-
-    #return
+    graph_a, graph_b = Graph(), Graph()
+    graph_a.buildGraph('data/itunes_amazon_exp_data/exp_data/tableA.csv')
+    graph_b.buildGraph('data/itunes_amazon_exp_data/exp_data/tableB.csv')
+    # embed()
+    train_data, val_data, test_data = generateTrainWithType('data/itunes_amazon_exp_data/exp_data/', graph_a, graph_b)
 
     if args.gpu < 0:
         cuda = False
@@ -247,15 +234,18 @@ def main(args):
         cuda = True
         torch.cuda.set_device(args.gpu)
     #print('here')
-    g, num_rel, offset, adj_a, adj_b, type_a_dict, type_b_dict = genSubGraph(tmp_a, tmp_b, args.n_layers+1)
+    g, num_rel, offset, adj_a, adj_b, type_a_dict, type_b_dict = genSubGraph(graph_a, graph_b, args.n_layers+1)
     #outputGATNE(tmp_a, tmp_b, train_data, train_data, open('data/GATNE_train.txt', 'w'), open('data/GATNE_feature.txt', 'w'))
     #g  = mergeGraph(tmp_a, tmp_b, train_data)
     #print(g.number_of_nodes(), g.number_of_edges())
     #pickle.dump(g, open('data/{}_graph.dgl'.format('imdb-fb'), 'wb'))
     #return
+    
     in_feats = g.ndata['features'].shape[1]
 
     loss_fcn = module.NCE_HINGE()
+
+    loss_fcn = nn.BCEWithLogitsLoss()
     #loss_fcn = module.NCE_HINGE_V2()
     #loss_fcn = module.NCE_HINGE_MOD()
     #loss_fcn = module.NCE_SIGMOID()
@@ -279,7 +269,6 @@ def main(args):
             loss_fcn=loss_fcn
             )
 
-
     #loss_fcn = module.NCE_CONTRAST()
 
 
@@ -301,45 +290,68 @@ def main(args):
     
     print(model_gan)
     #test_id = torch.LongTensor(test_id)
+    train_loader = tdata.DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+    test_loader = tdata.DataLoader(test_data, batch_size=train_data.shape[0], shuffle=False)
+    # embed()
     #writer.add_graph(model_gan, [edge_indices, torch.LongTensor(train_ids), args.batch_size, args.num_negatives, args.n_hidden, offset])
     for epoch in range(args.n_epochs):
         model_gan.train()
         model.train()
-        print("Number of nodes:{}, Number of edges:{}".format(g.number_of_nodes(), g.number_of_edges()))
-        train_ids = torch.LongTensor(utils.genEntAlignDataset(train_data, args.batch_size, len(tmp_a.id2idx), len(tmp_b.id2idx), args.num_negatives, combine = False))
+        #print("Number of nodes:{}, Number of edges:{}".format(g.number_of_nodes(), g.number_of_edges()))
+        # train_ids = torch.LongTensor(utils.genEntAlignDataset(train_data, args.batch_size, len(tmp_a.id2idx), len(tmp_b.id2idx), args.num_negatives, combine = False))
         #g_1, edge_indices, training_nodes, eids = genEdgeBatch(g, train_ids, tmp_a, tmp_b, adj_a, adj_b, type_a_dict, type_b_dict)
         training_loss = 0.0
         eids = []
-        for batch in tqdm(tdata.DataLoader(train_ids, batch_size=args.batch_size*(args.num_negatives+1), shuffle=False)):
-            test_edges, test_nodes, eid = genEdgeBatch(g, batch, tmp_a, tmp_b, adj_a, adj_b, type_a_dict, type_b_dict, num_hops = args.n_layers + 1, num_neighbors = args.num_neighbors)
+        for batch in train_loader:
+            # two graphs are concatenated
+            test_edges, test_nodes, eid = genEdgeBatch(g, batch, graph_a, graph_b, adj_a, adj_b, type_a_dict, type_b_dict, num_hops = args.n_layers + 1, num_neighbors = args.num_neighbors)
             #print("Number of nodes:{}, Number of edges:{}".format(g.number_of_nodes(), g.number_of_edges()))
             eids += eid
             emb = model_gan(g, test_edges, test_nodes)
-            output_a, output_b = emb[batch[:, 0]].view(-1, args.num_negatives+1, 2 * args.n_hidden), emb[batch[:, 1] + offset].view(-1, args.num_test_negatives+1, 2 * args.n_hidden)
-            #g.remove_edges(eid)
-            logits = model(output_a, output_b)
-            loss = loss_fcn(logits)
-            training_loss += loss
+            # embed()
+            if False:
+                output_a, output_b = emb[batch[:, 0]].view(-1, args.num_negatives+1, 2 * args.n_hidden), emb[batch[:, 1] + offset].view(-1, args.num_test_negatives+1, 2 * args.n_hidden)
+                #g.remove_edges(eid)
+                logits = model(output_a, output_b)
+                loss = loss_fcn(logits)
+            else:
+                # embed()
+                # emb = g.ndata['features']
+                loss = loss_fcn( model_gan.fc(emb[batch[:, 0]]*emb[batch[:, 1]+ offset]).squeeze(), batch[:, 2].cuda().float() )
+            training_loss += loss.detach().item()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
         #train_ids = torch.LongTensor(utils.genEntAlignDataset(train_data, args.batch_size, len(tmp_a.id2idx), len(tmp_b.id2idx), args.num_negatives, combine = False))
         #emb = model_gan(g_1, edge_indices, training_nodes)
-        print("Number of nodes:{}, Number of edges:{}".format(g.number_of_nodes(), g.number_of_edges()))
+        #print("Number of nodes:{}, Number of edges:{}".format(g.number_of_nodes(), g.number_of_edges()))
         g.remove_edges(eids)
-        print(len(eids), len(set(eids)))
+        # print(len(eids), len(set(eids)))
         print("Number of deleted edges:{}, Number of nodes:{}, Number of edges:{}".format(len(eids), g.number_of_nodes(), g.number_of_edges()))
         del emb
         torch.cuda.empty_cache()
         #loss.detach()
         
-        print('Epoch:{}, loss:{}'.format(epoch, training_loss.detach().item()))
+        print('Epoch:{}, loss:{}'.format(epoch, training_loss ))
 
+        with torch.no_grad():
+            eids = []
+            for batch in test_loader:
+                # two graphs are concatenated
+                test_edges, test_nodes, eid = genEdgeBatch(g, batch, graph_a, graph_b, adj_a, adj_b, type_a_dict, type_b_dict, num_hops = args.n_layers + 1, num_neighbors = args.num_neighbors)
+                #print("Number of nodes:{}, Number of edges:{}".format(g.number_of_nodes(), g.number_of_edges()))
+                eids += eid
+                emb = model_gan(g, test_edges, test_nodes)
+                # emb = g.ndata['features']
+                score = model_gan.fc(emb[batch[:, 0]]*emb[batch[:, 1]+ offset]).squeeze() #.sum(dim=1)
+                print(roc_auc_score(batch[:,2].numpy(), score.detach().cpu().numpy()))
+                # embed()
+            g.remove_edges(eids)
         
         #break 
 
-        if epoch >= 6:
+        if epoch >= 100:
             test_id = torch.LongTensor(pickle.load(open('test_neg_edit_blocking_v2.p', 'rb')))
             
             #print(len(test_nodes))
@@ -423,11 +435,11 @@ if __name__ == '__main__':
             help="dropout probability")
     parser.add_argument("--gpu", type=int, default=-1,
             help="gpu")
-    parser.add_argument("--lr", type=float, default=3e-3,
+    parser.add_argument("--lr", type=float, default=1e-3,
             help="learning rate")
     parser.add_argument("--n-epochs", type=int, default=10,
             help="number of training epochs")
-    parser.add_argument("--batch-size", type=int, default=36,
+    parser.add_argument("--batch-size", type=int, default=32,
             help="batch size")
     parser.add_argument("--test-batch-size", type=int, default=1000,
             help="test batch size")
@@ -437,7 +449,7 @@ if __name__ == '__main__':
             help="number of negative links to be sampled")
     parser.add_argument("--num-test-negatives", type=int, default=10,
             help="number of negative links to be sampled in test setting")
-    parser.add_argument("--n-hidden", type=int, default=64,
+    parser.add_argument("--n-hidden", type=int, default=50,
             help="number of hidden gcn units")
     parser.add_argument("--n-layers", type=int, default=1,
             help="number of hidden gcn layers")

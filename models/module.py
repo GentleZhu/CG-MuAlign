@@ -7,7 +7,7 @@ from dgl import DGLGraph
 import dgl.function as fn
 import argparse
 import pickle
-from GraphBuilder import Graph
+#from GraphBuilder import Graph
 from tqdm import tqdm
 import numpy as np
 import math
@@ -102,6 +102,7 @@ class smallGraphAlignLayer(nn.Module):
         self.attn_layers = nn.ModuleList()
         self.num_rels = num_rels
         self.self_attn = nn.Linear(2 * n_hidden, 1, bias=False)
+
         for i in range(2*num_rels+1):
             #projection_layer
             layer = nn.Linear(in_feats, n_hidden, bias = True)
@@ -192,6 +193,7 @@ class smallGraphAlignNet(nn.Module):
 
         # self.g = num_neighbors
         self.dist = dist
+        self.fc = nn.Linear(2*n_hidden, 1)
         self.loss_fcn = loss_fcn
 
     def predict(self, emb, train_ids, batch_size, num_negatives, n_hidden, offset):
