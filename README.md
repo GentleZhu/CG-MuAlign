@@ -16,6 +16,18 @@ booktitle = {Proceedings of The Web Conference 2020}
 ## Data
 Unfortunately, the original data used is not public available. But this reference implementation could be easily adopt to structured data: knowledge graph, knowledge base and __etc.__ See examples below for details. 
 
+We are collecting more public available knowledge graphs, stay tuned!
+
 ## Requirements
+```
+pip install -r requirements.txt
+```
 
 ## Run the code
+
+### Prepare the pre-trained fastText embedding
+Most of the attributes in a knowledge graph is text. 
+Obtain your binarized pre-trained word embeddings $PATH at [fastText](https://fasttext.cc/docs/en/english-vectors.html). I'm using [enwiki9.bin](https://fasttext.cc/docs/en/unsupervised-tutorial.html)
+
+python main.py --gpu=0 --pretrain-path=$PATH
+

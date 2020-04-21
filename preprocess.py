@@ -95,7 +95,7 @@ def generateTrainWithType(in_path, graph_a, graph_b, positive_only=False):
 
 class Graph(object):
 	"""docstring for Graph"""
-	def __init__(self):
+	def __init__(self, pretrain):
 		super(Graph, self).__init__()
 		#self.relation_list = relation_list
 		self.id2idx = {}
@@ -104,6 +104,7 @@ class Graph(object):
 		self.edge_src = []
 		self.edge_dst = []
 		self.edge_type = []
+		self.pretrain_path = pretrain
 	
 	def buildGraph(self, table):
 		# self.self.entity_table_table = self.entity_table_path
@@ -146,7 +147,7 @@ class Graph(object):
 					else:
 						self.entity_table[_ID].append(value)
 
-			feat = FeatureGenerator('/shared/data/qiz3/data/enwik9.bin')
+			feat = FeatureGenerator(self.pretrain_path)
 			#for tmp in triples
 				#if tmp[0] in self.id2idx and tmp[1] in self.id2idx and tmp[2] in self.relation_list:
 				#if tmp[0] in self.id2idx and tmp[2] in self.id2idx:

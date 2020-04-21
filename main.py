@@ -156,7 +156,7 @@ def mergeGraph(graph_a, graph_b, train_data):
 
 
 def main(args):
-    graph_a, graph_b = Graph(), Graph()
+    graph_a, graph_b = Graph(args.pretrain_path), Graph(args.pretrain_path)
     graph_a.buildGraph('data/itunes_amazon_exp_data/exp_data/tableA.csv')
     graph_b.buildGraph('data/itunes_amazon_exp_data/exp_data/tableB.csv')
     # embed()
@@ -348,6 +348,8 @@ if __name__ == '__main__':
             help="Weight for L2 loss")
     parser.add_argument("--model-id", type=str,
         help="Identifier of the current model")
+    parser.add_argument("--pretrain_path", type=str, default="/shared/data/qiz3/data/enwik9.bin",
+        help="pretrained fastText path")
     args = parser.parse_args()
 
 
