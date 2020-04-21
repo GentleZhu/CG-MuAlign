@@ -29,19 +29,16 @@ def warp_feature(model, source, mapping):
 	row = 0
 	none_cnt = 0
 	for k in source:
-		# only for amc-wiki dataset, uncomment two following two lines
-		#if source[k]['attr'][0]:
-		for attr in source[k][1]:
+		# now we use the first attribute
+		for idx,attr in enumerate(source[k][1]):
 			#embed()
-			feature_matrix[mapping[k], :] = model.generateEmbFeature(attr, sent=True)
-		#if source[k]['attr'][0] is not None:
-		#	feature_matrix[row, :] = model.generateEmbFeature(source[k]['attr'][0], sent=True)
-		#else:
-		#	none_cnt += 1
+			#feature_matrix[mapping[k], idx*100:(idx+1)*100] = model.generateEmbFeature(attr, sent=True)
+			feature_matrix[mapping[k], :] += model.generateEmbFeature(attr, sent=True)
+
 	return feature_matrix
 
 
-def generateTrainWithType(in_path, graph_a, graph_b):
+def generateTrainWithType(in_path, graph_a, graph_b, positive_only=False):
 	train_data, val_data, test_data = [], [], [] 
 	with open(in_path+'train.csv') as IN:
 		IN.readline()
@@ -124,7 +121,7 @@ class Graph(object):
 					type_list.append(field.split('_')[0])
 				else:
 					attr_list.append(field)
-			print(type_list)
+
 			edge_list = []
 			for line in spamreader:
 				# print(line)

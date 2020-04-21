@@ -1,0 +1,16 @@
+absl-py==0.9.0
+backcall==0.1.0
+boto==2.49.0
+boto3==1.11.13
+botocore==1.14.13
+cachetools==4.0.0
+dgl-cu100==0.4.3
+fasttext==0.9.1
+ipython==7.11.1
+ipython-genutils==0.2.0
+networkx==2.4
+numpy==1.18.1
+sklearn==0.0
+tensorboard==2.1.1
+torch==1.4.0
+tqdm==4.41.1

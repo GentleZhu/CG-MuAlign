@@ -114,7 +114,6 @@ class smallGraphAlignLayer(nn.Module):
 
     def reduce(self, node):
         if 'm' in node.mailbox:
-        #if False:
             mask = node.mailbox['m'].sum(dim=2) != 0
             attn_weights = torch.exp(-torch.norm(node.mailbox['z'][:, :, None] - node.mailbox['m'][:, None], dim=3, p=2))
             tmp_attn = attn_weights * (1 - mask[:,:,None].float()) * mask[:,None].float()
@@ -127,8 +126,6 @@ class smallGraphAlignLayer(nn.Module):
             return {'z': torch.cat([node.data['h'], node.mailbox['z'].mean(dim=1)], dim=1)}
         #return {'z': torch.cat([node.data['h'], node.mailbox['z']], dim=0)}
 
-    def cross_attn(self, edges):
-        return {''}
 
     def forward(self, g, feat, edge_indices, node_indices = None, attn = False):
         g = g.local_var()
@@ -156,13 +153,6 @@ class smallGraphAlignLayer(nn.Module):
 
 class smallGraphAlignNet(nn.Module):
     """Subgraph Alignment Network for Entity Linkage
-        model option:
-            1. 1-Layer RGCN
-            2. 2-Layer RGCN
-            3. 2-Layer RGCN + parameter_sharing 
-            4. 2-Layer RGCN + cross attention
-            5. 1-Layer RGCN + parameter_sharing + cross attention
-            5. 2-Layer RGCN + parameter_sharing + cross attention
     """
     def __init__(self,
                 in_feats,
